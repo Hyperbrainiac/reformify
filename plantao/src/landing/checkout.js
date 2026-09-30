@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { config } from '../config.js';
 import { oferta, PUBLICACAO_LIBERADA_CEO } from '../oferta.js';
+import { criarAssinatura } from './mercadopago.js';
 
 mkdirSync(config.dadosDir, { recursive: true });
 const db = new DatabaseSync(path.join(config.dadosDir, 'checkout.db'));
@@ -15,7 +16,8 @@ CREATE TABLE IF NOT EXISTS sessoes (
   email TEXT NOT NULL,
   nome TEXT NOT NULL,
   status TEXT NOT NULL,
-  criado_em TEXT NOT NULL
+  criado_em TEXT NOT NULL,
+  gateway_id TEXT
 );
 CREATE TABLE IF NOT EXISTS eventos_webhook (
   event_id TEXT PRIMARY KEY,
@@ -30,7 +32,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Sem e-mail não há para onde mandar o acesso depois do pagamento — o
 // gateway cobra, mas ninguém entra no plantão. Bloqueado aqui, não na landing.
-export function iniciarSessao(planoId, dadosCliente = {}) {
+export async function iniciarSessao(planoId, dadosCliente = {}) {
   if (!oferta.planos[planoId]) {
     throw new Error(`plano desconhecido: ${planoId}`);
   }
@@ -52,6 +54,7 @@ export function iniciarSessao(planoId, dadosCliente = {}) {
   }
 
   const id = crypto.randomUUID();
+  const plano = oferta.planos[planoId];
   db.prepare('INSERT INTO sessoes (id, plano, email, nome, status, criado_em) VALUES (?, ?, ?, ?, ?, ?)').run(
     id,
     planoId,
@@ -60,7 +63,26 @@ export function iniciarSessao(planoId, dadosCliente = {}) {
     'pendente',
     new Date().toISOString()
   );
-  return { id, plano: oferta.planos[planoId] };
+
+  if (config.checkout.modo === 'producao' && config.checkout.provedor === 'mercadopago') {
+    // Único ramo que fala com o gateway de verdade — só chega aqui com o gate
+    // do CEO já liberado (checagem acima). Sandbox nunca passa por aqui.
+    try {
+      const { gatewayId, initPoint } = await criarAssinatura({
+        sessaoId: id,
+        plano,
+        email,
+        backUrl: config.urlBase ? `${config.urlBase}/` : undefined,
+      });
+      db.prepare('UPDATE sessoes SET gateway_id = ? WHERE id = ?').run(gatewayId, id);
+      return { id, plano, initPoint };
+    } catch (e) {
+      db.prepare("UPDATE sessoes SET status = 'falhou' WHERE id = ?").run(id);
+      throw e;
+    }
+  }
+
+  return { id, plano };
 }
 
 export function obterSessao(id) {

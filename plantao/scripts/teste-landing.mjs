@@ -160,7 +160,7 @@ async function main() {
         process.env.LANDING_DADOS_DIR = ${JSON.stringify(dirProducao)};
         const { iniciarSessao, CheckoutProducaoBloqueadoError } = await import('${new URL('../src/landing/checkout.js', import.meta.url)}');
         try {
-          iniciarSessao('escritorio');
+          await iniciarSessao('escritorio');
           console.log('NAO_BLOQUEOU');
         } catch (e) {
           console.log(e instanceof CheckoutProducaoBloqueadoError ? 'BLOQUEOU' : 'ERRO_ERRADO:' + e.message);

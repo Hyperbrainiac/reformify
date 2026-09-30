@@ -12,6 +12,7 @@ import {
   CheckoutProducaoBloqueadoError,
 } from './checkout.js';
 import { enviarBoasVindas, resumoEmail } from './email.js';
+import { consultarAssinatura } from './mercadopago.js';
 
 function lerCorpo(req) {
   return new Promise((resolve, reject) => {
@@ -127,8 +128,15 @@ export function criarServidor() {
         }
 
         try {
-          const sessao = iniciarSessao(plano, dadosCliente);
+          const sessao = await iniciarSessao(plano, dadosCliente);
           if (contentType.includes('application/json')) return enviarJson(res, 201, sessao);
+          if (sessao.initPoint) {
+            // Produção real: manda o cliente direto para o checkout hospedado
+            // pelo Mercado Pago. Formulário é POST comum (sem JS), o navegador
+            // segue o redirect sozinho — funciona igual no celular.
+            res.writeHead(302, { Location: sessao.initPoint });
+            return res.end();
+          }
           return enviarHtml(
             res,
             201,
@@ -156,7 +164,20 @@ export function criarServidor() {
         const body = await lerCorpo(req);
         const evento = JSON.parse(body || '{}');
         try {
-          const resultado = processarWebhookPagamento(evento.sessaoId, evento.eventId, evento.status);
+          let resultado;
+          if (config.checkout.modo === 'producao' && config.checkout.provedor === 'mercadopago') {
+            // Nunca confia no status do corpo do webhook (qualquer um pode
+            // forjar um POST). Usa o data.id da notificação só para achar a
+            // assinatura e reconsulta o status de verdade na API do Mercado Pago.
+            const gatewayId = evento?.data?.id;
+            if (!gatewayId) return enviarJson(res, 400, { ok: false, erro: 'notificação sem data.id' });
+            const eventId = String(evento.id ?? gatewayId);
+            const { status, externalReference } = await consultarAssinatura(gatewayId);
+            const statusMapeado = status === 'authorized' ? 'aprovado' : 'recusado';
+            resultado = processarWebhookPagamento(externalReference, eventId, statusMapeado);
+          } else {
+            resultado = processarWebhookPagamento(evento.sessaoId, evento.eventId, evento.status);
+          }
           let email;
           if (!resultado.duplicado && resultado.sessao.status === 'pago') {
             email = await enviarBoasVindas(resultado.sessao);

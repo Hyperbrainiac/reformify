@@ -7,6 +7,6 @@
   },
   "scripts": {
     "start": "node plantao/src/landing/index.js",
-    "test": "node plantao/scripts/teste-landing.mjs"
+    "test": "node plantao/scripts/teste-landing.mjs && node plantao/scripts/teste-mercadopago.mjs"
   }
 }
