@@ -57,16 +57,17 @@ export function criarServidor() {
     const url = new URL(req.url, 'http://localhost');
 
     try {
-      if (req.method === 'GET' && url.pathname === '/') {
-        return enviarHtml(res, 200, paginaLandingHtml({ preview: config.preview }));
+      if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/') {
+        const html = paginaLandingHtml({ preview: config.preview });
+        return enviarHtml(res, 200, req.method === 'HEAD' ? '' : html);
       }
 
-      if (req.method === 'GET' && url.pathname === '/robots.txt') {
+      if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/robots.txt') {
         res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-        return res.end(config.preview ? 'User-agent: *\nDisallow: /\n' : 'User-agent: *\nAllow: /\n');
+        return res.end(req.method === 'HEAD' ? '' : (config.preview ? 'User-agent: *\nDisallow: /\n' : 'User-agent: *\nAllow: /\n'));
       }
 
-      if (req.method === 'GET' && url.pathname === '/saude') {
+      if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/saude') {
         return enviarJson(res, 200, {
           ok: true,
           preview: config.preview,
