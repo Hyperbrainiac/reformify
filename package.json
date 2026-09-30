@@ -1,0 +1,12 @@
+{
+  "name": "reformify",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node plantao/src/landing/index.js",
+    "test": "node plantao/scripts/teste-landing.mjs"
+  }
+}

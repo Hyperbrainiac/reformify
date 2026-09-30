@@ -1,0 +1,242 @@
+import { copy, CAMPOS_FORMULARIO } from './copy.js';
+import { oferta } from '../oferta.js';
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[c]));
+}
+
+const CSS = `
+:root{--bg:#0b0f14;--fg:#e9edf1;--muted:#9aa7b2;--accent:#2fd06a;--accent-fg:#06210f;--card:#131a22;--border:#22303b;font-size:16px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,system-ui,Segoe UI,Roboto,Arial,sans-serif;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding:0 20px}
+header.hero{padding:48px 0 32px;text-align:left}
+h1{font-size:1.9rem;line-height:1.25;margin:0 0 16px}
+.subhead{color:var(--muted);font-size:1.05rem;margin:0 0 24px}
+section{padding:32px 0;border-top:1px solid var(--border)}
+section h2{font-size:1.4rem;margin:0 0 16px}
+.btn{display:inline-block;width:100%;text-align:center;background:var(--accent);color:var(--accent-fg);font-weight:700;padding:16px 20px;border-radius:10px;text-decoration:none;font-size:1.05rem;min-height:44px}
+.btn.secundario{background:transparent;color:var(--fg);border:1px solid var(--border)}
+.btn-apoio{color:var(--muted);font-size:.9rem;margin-top:10px;text-align:center}
+.passo{margin-bottom:20px}
+.passo b{display:block;margin-bottom:4px}
+blockquote{border-left:3px solid var(--accent);margin:16px 0;padding:4px 0 4px 16px;color:var(--fg)}
+blockquote p{margin:0 0 12px}
+.pergunta-real{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;font-style:italic}
+.fonte-verificacao{color:var(--muted);font-size:.85rem;margin-top:12px}
+.rodape-disclaimer{color:var(--muted);font-size:.8rem;border-top:1px dashed var(--border);margin-top:16px;padding-top:12px}
+table.planos{width:100%;border-collapse:collapse;margin:16px 0;font-size:.92rem}
+table.planos th,table.planos td{border:1px solid var(--border);padding:10px 8px;text-align:left;vertical-align:top}
+table.planos th{background:var(--card)}
+.preco{font-size:1.3rem;font-weight:700;color:var(--accent)}
+.cta-grupo{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+ul.check{list-style:none;padding:0;margin:0}
+ul.check li{padding:8px 0 8px 28px;position:relative}
+ul.check li::before{content:"—";position:absolute;left:0;color:var(--accent)}
+details{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;padding:4px 12px}
+details summary{padding:12px 0;font-weight:600;cursor:pointer;min-height:44px;display:flex;align-items:center}
+details p{color:var(--muted);margin:0 0 12px}
+form.lead{display:flex;flex-direction:column;gap:14px}
+form.lead label{font-weight:600;font-size:.95rem}
+form.lead input,form.lead select,form.lead textarea{width:100%;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--fg);font-size:1rem;min-height:44px}
+form.lead textarea{min-height:88px}
+.checkbox-linha{display:flex;align-items:flex-start;gap:10px;font-weight:400;font-size:.9rem;color:var(--muted)}
+.checkbox-linha input{width:auto;min-height:auto;margin-top:3px}
+footer{padding:32px 0 48px;color:var(--muted);font-size:.85rem;text-align:center}
+.msg{padding:14px;border-radius:8px;margin-bottom:16px}
+.msg.ok{background:#123321;color:#8fe6ab;border:1px solid #1f5c39}
+.msg.erro{background:#331212;color:#e68f8f;border:1px solid #5c1f1f}
+a{color:var(--accent)}
+@media (min-width:640px){h1{font-size:2.4rem}.cta-grupo{flex-direction:row}.btn{width:auto;flex:1}}
+`;
+
+function secaoProblema() {
+  return `
+  <section id="problema">
+    <h2>${esc(copy.problema.titulo)}</h2>
+    ${copy.problema.paragrafos.map((p) => `<p>${esc(p)}</p>`).join('\n')}
+  </section>`;
+}
+
+function secaoComoFunciona() {
+  return `
+  <section id="como-funciona">
+    <h2>${esc(copy.comoFunciona.titulo)}</h2>
+    ${copy.comoFunciona.passos
+      .map(
+        (p) => `<div class="passo"><b>${esc(p.titulo)}</b><span>${esc(p.texto)}</span></div>`
+      )
+      .join('\n')}
+  </section>`;
+}
+
+function secaoProva() {
+  const p = copy.prova;
+  return `
+  <section id="prova">
+    <h2>${esc(p.titulo)}</h2>
+    <p>${esc(p.intro)}</p>
+    <div class="pergunta-real">&ldquo;${esc(p.pergunta)}&rdquo;</div>
+    <blockquote>
+      ${p.resposta.map((par) => `<p>${esc(par)}</p>`).join('\n')}
+      <p class="fonte-verificacao">Fontes: ${p.fontes
+        .map((f) => `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.texto)}</a>`)
+        .join(' · ')}</p>
+      <p class="fonte-verificacao">Verificado em ${esc(p.dataVerificacao)}.</p>
+      <p class="rodape-disclaimer">${esc(p.rodape)}</p>
+    </blockquote>
+    ${p.fechamento.map((par) => `<p>${esc(par)}</p>`).join('\n')}
+  </section>`;
+}
+
+function linhaPlano(plano) {
+  return `<td><span class="preco">R$ ${plano.precoMes}</span>/mês</td>`;
+}
+
+function secaoPlanos() {
+  const { plantao, escritorio } = oferta.planos;
+  const p = copy.planos;
+  return `
+  <section id="planos">
+    <h2>${esc(p.titulo)}</h2>
+    <table class="planos">
+      <tr><th></th><th>${esc(plantao.nome)}</th><th>${esc(escritorio.nome)} ⭐</th></tr>
+      <tr><td>Preço</td>${linhaPlano(plantao)}${linhaPlano(escritorio)}</tr>
+      <tr><td>1ª resposta humana</td><td>${esc(plantao.aceite)}</td><td><b>${esc(escritorio.aceite)}</b></td></tr>
+      <tr><td>Resposta completa com a fonte</td><td>${esc(plantao.prazoResposta)}</td><td><b>${esc(escritorio.prazoResposta)}</b></td></tr>
+      <tr><td>Perguntas/mês (teto macio)</td><td>${plantao.perguntasMes}</td><td>${escritorio.perguntasMes}</td></tr>
+      <tr><td>Pessoas no canal</td><td>${plantao.usuariosCanal}</td><td>${escritorio.usuariosCanal}</td></tr>
+      <tr><td>Norma de referência citada</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Base Reforma</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Alertas de atualização</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Kit white-label mensal</td><td>—</td><td>✅</td></tr>
+      <tr><td>Resumo mensal escrito</td><td>—</td><td>✅</td></tr>
+      <tr><td>Checklist de transição por cliente</td><td>—</td><td>✅</td></tr>
+      <tr><td>Prioridade na fila</td><td>—</td><td>✅</td></tr>
+      <tr><td>Garantia de prazo</td><td>✅</td><td>✅</td></tr>
+    </table>
+    <p>${esc(p.turmaFundadora)}</p>
+    <p>${esc(p.anual)}</p>
+    <div class="cta-grupo">
+      <a class="btn" href="/checkout/iniciar?plano=escritorio">${esc(p.ctaPrimario)}</a>
+      <a class="btn secundario" href="/checkout/iniciar?plano=plantao">${esc(p.ctaSecundario)}</a>
+    </div>
+    <p class="btn-apoio">${esc(p.apoio)} <a href="#amostra-gratis">Mandar dúvida</a></p>
+  </section>`;
+}
+
+function secaoPrazo() {
+  const p = copy.prazoPorExtenso;
+  return `
+  <section id="prazo">
+    <h2>${esc(p.titulo)}</h2>
+    <p>${esc(p.intro)}</p>
+    <ul class="check">${p.bullets.map((b) => `<li>${esc(b)}</li>`).join('\n')}</ul>
+    <p>${esc(p.fechamento)}</p>
+  </section>`;
+}
+
+function secaoGarantia() {
+  const g = copy.garantia;
+  return `
+  <section id="garantia">
+    <h2>${esc(g.titulo)}</h2>
+    ${g.itens.map((i) => `<p><b>${esc(i.titulo)}</b> ${esc(i.texto)}</p>`).join('\n')}
+    <p>${esc(g.fechamento)}</p>
+  </section>`;
+}
+
+function secaoNaoFazemos() {
+  const n = copy.naoFazemos;
+  return `
+  <section id="nao-fazemos">
+    <h2>${esc(n.titulo)}</h2>
+    <ul class="check">${n.bullets.map((b) => `<li>${esc(b)}</li>`).join('\n')}</ul>
+    <p>${esc(n.fechamento)}</p>
+  </section>`;
+}
+
+function secaoFaq() {
+  return `
+  <section id="faq">
+    <h2>Perguntas frequentes</h2>
+    ${copy.faq
+      .map(
+        (item) => `<details><summary>${esc(item.q)}</summary><p>${esc(item.a)}</p></details>`
+      )
+      .join('\n')}
+  </section>`;
+}
+
+function secaoFormulario(mensagem) {
+  const campos = CAMPOS_FORMULARIO.map((c) => {
+    if (c.tipo === 'select') {
+      return `<div><label for="${c.nome}">${esc(c.label)}</label><select id="${c.nome}" name="${c.nome}" ${c.obrigatorio ? 'required' : ''}>
+        <option value="" disabled selected>Selecione</option>
+        ${c.opcoes.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}
+      </select></div>`;
+    }
+    if (c.tipo === 'textarea') {
+      return `<div><label for="${c.nome}">${esc(c.label)}</label><textarea id="${c.nome}" name="${c.nome}" ${c.obrigatorio ? 'required' : ''} ${c.minLength ? `minlength="${c.minLength}"` : ''}></textarea></div>`;
+    }
+    if (c.tipo === 'checkbox') {
+      return `<div class="checkbox-linha"><input type="checkbox" id="${c.nome}" name="${c.nome}" ${c.obrigatorio ? 'required' : ''}/><label for="${c.nome}">${esc(c.label)}</label></div>`;
+    }
+    return `<div><label for="${c.nome}">${esc(c.label)}</label><input type="${c.tipo}" id="${c.nome}" name="${c.nome}" ${c.obrigatorio ? 'required' : ''}/></div>`;
+  }).join('\n');
+
+  return `
+  <section id="amostra-gratis">
+    <h2>${esc(copy.ctaFinal.titulo)}</h2>
+    <p>${esc(copy.ctaFinal.texto)}</p>
+    ${mensagem === 'ok' ? `<div class="msg ok">Recebemos sua dúvida. Respondemos por escrito, com a norma citada, em até 1 dia útil.</div>` : ''}
+    ${mensagem === 'erro' ? `<div class="msg erro">Não deu para enviar — confira os campos obrigatórios e tente de novo.</div>` : ''}
+    <form class="lead" method="post" action="/api/lead">
+      ${campos}
+      <button class="btn" type="submit">${esc(copy.ctaFinal.botao)}</button>
+    </form>
+  </section>`;
+}
+
+export function paginaLandingHtml({ preview, mensagem } = {}) {
+  const robotsMeta = preview
+    ? '<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">'
+    : '<meta name="robots" content="index, follow">';
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+${robotsMeta}
+<title>Plantão Reforma Tributária — ACE AI</title>
+<style>${CSS}</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <h1>${esc(copy.h1)}</h1>
+    <p class="subhead">${esc(copy.subhead)}</p>
+    <a class="btn" href="#amostra-gratis">${esc(copy.ctaPrimario.texto)}</a>
+    <p class="btn-apoio">${esc(copy.ctaPrimario.apoio)}</p>
+  </header>
+  ${secaoProblema()}
+  ${secaoComoFunciona()}
+  ${secaoProva()}
+  ${secaoPlanos()}
+  ${secaoPrazo()}
+  ${secaoGarantia()}
+  ${secaoNaoFazemos()}
+  ${secaoFaq()}
+  ${secaoFormulario(mensagem)}
+  <footer>${esc(copy.rodapePagina)}</footer>
+</div>
+</body>
+</html>`;
+}

@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: reformify-landing
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /saude
+    envVars:
+      - key: LANDING_PREVIEW
+        value: "false"
+      - key: CHECKOUT_MODO
+        value: sandbox
+      - key: CHECKOUT_PROVEDOR
+        value: simulado
