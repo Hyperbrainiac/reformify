@@ -67,12 +67,16 @@ export async function iniciarSessao(planoId, dadosCliente = {}) {
   if (config.checkout.modo === 'producao' && config.checkout.provedor === 'mercadopago') {
     // Único ramo que fala com o gateway de verdade — só chega aqui com o gate
     // do CEO já liberado (checagem acima). Sandbox nunca passa por aqui.
+    if (!config.urlBase) {
+      db.prepare("UPDATE sessoes SET status = 'falhou' WHERE id = ?").run(id);
+      throw new Error('LANDING_URL_BASE ausente — não é possível montar o back_url do Mercado Pago');
+    }
     try {
       const { gatewayId, initPoint } = await criarAssinatura({
         sessaoId: id,
         plano,
         email,
-        backUrl: config.urlBase ? `${config.urlBase}/` : undefined,
+        backUrl: `${config.urlBase}/`,
       });
       db.prepare('UPDATE sessoes SET gateway_id = ? WHERE id = ?').run(gatewayId, id);
       return { id, plano, initPoint };

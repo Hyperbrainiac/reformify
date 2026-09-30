@@ -14,6 +14,15 @@ function token() {
 // Cria a assinatura recorrente e devolve o link de checkout hospedado pelo
 // Mercado Pago (init_point). O sessaoId vira external_reference — é assim que
 // o webhook, mais tarde, volta a achar a sessão local sem confiar no corpo do POST.
+//
+// IMPORTANTE — validado contra a API real (ACE-6): ao contrário da API de
+// Payment/Preference, o endpoint /preapproval NÃO aceita notification_url por
+// objeto (testei enviando o campo: ele é ignorado, nunca volta na resposta).
+// Para o webhook chegar de verdade em produção, é preciso cadastrar a URL
+// https://<host>/checkout/webhook no Painel do Desenvolvedor do Mercado Pago,
+// na aplicação dona deste token (application_id 3030941579181132), assinando
+// pelo menos o tópico "assinaturas" (subscription_preapproval). Sem isso, um
+// cliente pode pagar de verdade e nunca ter o acesso liberado — silenciosamente.
 export async function criarAssinatura({ sessaoId, plano, email, backUrl }) {
   const resposta = await fetch(`${API_BASE}/preapproval`, {
     method: 'POST',

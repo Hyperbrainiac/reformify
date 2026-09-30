@@ -50,7 +50,12 @@ async function main() {
 
   // --- criarAssinatura: forma do request e do resultado ---
   const plano = { nome: 'Plano Escritório', precoMes: 897 };
-  const criada = await criarAssinatura({ sessaoId: 'sess-x', plano, email: 'ana@escritorio.com.br', backUrl: 'https://reformify-landing.onrender.com/' });
+  const criada = await criarAssinatura({
+    sessaoId: 'sess-x',
+    plano,
+    email: 'ana@escritorio.com.br',
+    backUrl: 'https://reformify-landing.onrender.com/',
+  });
   checar('criarAssinatura devolve gatewayId', criada.gatewayId === 'mp-preap-123');
   checar('criarAssinatura devolve initPoint do Mercado Pago', criada.initPoint === 'https://www.mercadopago.com/checkout/fake');
 
