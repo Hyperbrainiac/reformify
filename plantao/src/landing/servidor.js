@@ -4,7 +4,14 @@ import { paginaLandingHtml } from './html.js';
 import { inserirLead, contarLeads } from './leads.js';
 import { CAMPOS_FORMULARIO } from './copy.js';
 import { pendencias } from '../oferta.js';
-import { iniciarSessao, obterSessao, processarWebhookPagamento, CheckoutProducaoBloqueadoError } from './checkout.js';
+import {
+  iniciarSessao,
+  obterSessao,
+  processarWebhookPagamento,
+  resumoCheckout,
+  CheckoutProducaoBloqueadoError,
+} from './checkout.js';
+import { enviarBoasVindas, resumoEmail } from './email.js';
 
 function lerCorpo(req) {
   return new Promise((resolve, reject) => {
@@ -69,7 +76,9 @@ export function criarServidor() {
           checkout: {
             modo: config.checkout.modo,
             provedor: config.checkout.provedor,
+            resumo: resumoCheckout(),
           },
+          email: resumoEmail(),
         });
       }
 
@@ -102,25 +111,36 @@ export function criarServidor() {
       }
 
       if (req.method === 'POST' && url.pathname === '/checkout/iniciar') {
-        const plano = url.searchParams.get('plano');
-        try {
-          const sessao = iniciarSessao(plano);
-          return enviarJson(res, 201, sessao);
-        } catch (e) {
-          if (e instanceof CheckoutProducaoBloqueadoError) return enviarJson(res, 403, { ok: false, erro: e.message });
-          return enviarJson(res, 400, { ok: false, erro: e.message });
+        const contentType = req.headers['content-type'] || '';
+        let plano;
+        let dadosCliente;
+        if (contentType.includes('application/json')) {
+          const body = JSON.parse((await lerCorpo(req)) || '{}');
+          plano = url.searchParams.get('plano') || body.plano;
+          dadosCliente = { nome: body.nome, email: body.email };
+        } else {
+          const body = await lerCorpo(req);
+          const dados = parseFormUrlEncoded(body);
+          plano = url.searchParams.get('plano') || dados.plano;
+          dadosCliente = { nome: dados.nome, email: dados.email };
         }
-      }
 
-      // GET também aceito para permitir clicar direto no link da tabela de planos.
-      if (req.method === 'GET' && url.pathname === '/checkout/iniciar') {
-        const plano = url.searchParams.get('plano');
         try {
-          const sessao = iniciarSessao(plano);
-          return enviarJson(res, 201, sessao);
+          const sessao = iniciarSessao(plano, dadosCliente);
+          if (contentType.includes('application/json')) return enviarJson(res, 201, sessao);
+          return enviarHtml(
+            res,
+            201,
+            `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>Checkout — ACE AI</title></head>
+            <body style="font-family:sans-serif;max-width:520px;margin:40px auto;padding:0 20px">
+              <p>Sessão de checkout criada (modo ${config.checkout.modo}). Sessão: ${sessao.id} — plano ${sessao.plano.nome} (R$ ${sessao.plano.precoMes}/mês).</p>
+              <p><a href="/">Voltar</a></p>
+            </body></html>`
+          );
         } catch (e) {
-          if (e instanceof CheckoutProducaoBloqueadoError) return enviarJson(res, 403, { ok: false, erro: e.message });
-          return enviarJson(res, 400, { ok: false, erro: e.message });
+          const status = e instanceof CheckoutProducaoBloqueadoError ? 403 : 400;
+          if (contentType.includes('application/json')) return enviarJson(res, status, { ok: false, erro: e.message });
+          return enviarHtml(res, status, `<p>Não deu para iniciar o checkout: ${e.message}</p><p><a href="/">Voltar</a></p>`);
         }
       }
 
@@ -135,8 +155,12 @@ export function criarServidor() {
         const body = await lerCorpo(req);
         const evento = JSON.parse(body || '{}');
         try {
-          const resultado = processarWebhookPagamento(evento.sessaoId, evento.eventId);
-          return enviarJson(res, 200, { ok: true, ...resultado });
+          const resultado = processarWebhookPagamento(evento.sessaoId, evento.eventId, evento.status);
+          let email;
+          if (!resultado.duplicado && resultado.sessao.status === 'pago') {
+            email = await enviarBoasVindas(resultado.sessao);
+          }
+          return enviarJson(res, 200, { ok: true, ...resultado, email });
         } catch (e) {
           return enviarJson(res, 400, { ok: false, erro: e.message });
         }

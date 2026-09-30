@@ -86,27 +86,67 @@ async function main() {
   });
   checar('lead incompleto rejeitado (400)', respLeadInvalido.status === 400);
 
-  // --- Checkout sandbox + webhook idempotente ---
-  const sessaoResp = await fetch(`${base}/checkout/iniciar?plano=escritorio`, { method: 'POST' });
+  // --- Checkout sandbox: sem e-mail não inicia ---
+  const sessaoSemEmail = await fetch(`${base}/checkout/iniciar?plano=escritorio`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nome: 'Ana Contadora' }),
+  });
+  checar('checkout sem e-mail é rejeitado (400)', sessaoSemEmail.status === 400);
+
+  // --- Checkout sandbox + webhook idempotente (pagamento e e-mail) ---
+  const sessaoResp = await fetch(`${base}/checkout/iniciar?plano=escritorio`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nome: 'Ana Contadora', email: 'ana@contabilidaderibeiro.com.br' }),
+  });
   const sessao = await sessaoResp.json();
   checar('sessão de checkout sandbox criada', sessaoResp.status === 201 && sessao.id);
+  checar('valor vem da oferta, não do cliente', sessao.plano.precoMes === 897);
 
   const eventId = 'evt_teste_1';
   const webhook1 = await fetch(`${base}/checkout/webhook`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessaoId: sessao.id, eventId }),
+    body: JSON.stringify({ sessaoId: sessao.id, eventId, status: 'aprovado' }),
   });
   const webhook1Body = await webhook1.json();
   checar('webhook paga a sessão', webhook1.status === 200 && webhook1Body.sessao.status === 'pago' && webhook1Body.duplicado === false);
+  checar('e-mail de boas-vindas disparado na liberação', webhook1Body.email?.enviado === true);
 
   const webhook2 = await fetch(`${base}/checkout/webhook`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessaoId: sessao.id, eventId }),
+    body: JSON.stringify({ sessaoId: sessao.id, eventId, status: 'aprovado' }),
   });
   const webhook2Body = await webhook2.json();
   checar('webhook repetido não cobra de novo (idempotência)', webhook2.status === 200 && webhook2Body.duplicado === true);
+
+  const webhook3 = await fetch(`${base}/checkout/webhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessaoId: sessao.id, eventId: 'evt_teste_2', status: 'aprovado' }),
+  });
+  const webhook3Body = await webhook3.json();
+  checar('evento novo pós-liberação não reenvia e-mail', webhook3Body.email?.duplicado === true);
+
+  // --- Falha de pagamento visível (Bia acompanha pelo /saude) ---
+  const sessaoFalhaResp = await fetch(`${base}/checkout/iniciar?plano=plantao`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nome: 'Bruno Contador', email: 'bruno@escritorio.com.br' }),
+  });
+  const sessaoFalha = await sessaoFalhaResp.json();
+  await fetch(`${base}/checkout/webhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessaoId: sessaoFalha.id, eventId: 'evt_falha_1', status: 'recusado' }),
+  });
+
+  const saudeFinal = await fetch(`${base}/saude`).then((r) => r.json());
+  checar('checkout: 2 sessões pagas registradas', saudeFinal.checkout.resumo.pagas === 1);
+  checar('falha de pagamento visível no /saude para a Bia', saudeFinal.checkout.resumo.falhas === 1);
+  checar('exatamente 1 e-mail de boas-vindas enviado', saudeFinal.email.total === 1);
 
   servidor.close();
 

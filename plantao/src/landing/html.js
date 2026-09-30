@@ -1,4 +1,7 @@
 import { copy, CAMPOS_FORMULARIO } from './copy.js';
+
+const CAMPO_NOME = CAMPOS_FORMULARIO.find((c) => c.nome === 'nome');
+const CAMPO_EMAIL = CAMPOS_FORMULARIO.find((c) => c.nome === 'email');
 import { oferta } from '../oferta.js';
 
 function esc(s) {
@@ -99,6 +102,16 @@ function linhaPlano(plano) {
   return `<td><span class="preco">R$ ${plano.precoMes}</span>/mês</td>`;
 }
 
+// Sem isto o clique no plano não carrega e-mail nenhum: o pagamento até
+// pode ser aprovado, mas não há para onde mandar o acesso depois.
+function formularioCheckout(planoId, textoBotao, classeBotao) {
+  return `<form class="lead" method="post" action="/checkout/iniciar?plano=${planoId}">
+    <div><label for="nome-${planoId}">${esc(CAMPO_NOME.label)}</label><input type="text" id="nome-${planoId}" name="nome" required/></div>
+    <div><label for="email-${planoId}">${esc(CAMPO_EMAIL.label)}</label><input type="email" id="email-${planoId}" name="email" required/></div>
+    <button class="btn${classeBotao ? ' ' + classeBotao : ''}" type="submit">${esc(textoBotao)}</button>
+  </form>`;
+}
+
 function secaoPlanos() {
   const { plantao, escritorio } = oferta.planos;
   const p = copy.planos;
@@ -124,8 +137,8 @@ function secaoPlanos() {
     <p>${esc(p.turmaFundadora)}</p>
     <p>${esc(p.anual)}</p>
     <div class="cta-grupo">
-      <a class="btn" href="/checkout/iniciar?plano=escritorio">${esc(p.ctaPrimario)}</a>
-      <a class="btn secundario" href="/checkout/iniciar?plano=plantao">${esc(p.ctaSecundario)}</a>
+      ${formularioCheckout('escritorio', p.ctaPrimario)}
+      ${formularioCheckout('plantao', p.ctaSecundario, 'secundario')}
     </div>
     <p class="btn-apoio">${esc(p.apoio)} <a href="#amostra-gratis">Mandar dúvida</a></p>
   </section>`;
