@@ -21,5 +21,12 @@ export const config = {
     modo: process.env.CHECKOUT_MODO || 'sandbox', // 'sandbox' | 'producao'
     provedor: process.env.CHECKOUT_PROVEDOR || 'simulado',
   },
+  canal: {
+    // Chat id do grupo/DM do Telegram onde a Bia opera o plantão (não é
+    // segredo, mas também não é hardcode — fica por ambiente). O token do
+    // bot (TELEGRAM_BOT_TOKEN) é lido direto do ambiente em canal/telegram.js,
+    // mesmo padrão do RESEND_API_KEY e do MERCADOPAGO_ACCESS_TOKEN.
+    staffChatId: process.env.TELEGRAM_STAFF_CHAT_ID || null,
+  },
   dadosDir: process.env.LANDING_DADOS_DIR || 'plantao/dados',
 };

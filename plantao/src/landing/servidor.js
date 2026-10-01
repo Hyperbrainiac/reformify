@@ -13,6 +13,15 @@ import {
 } from './checkout.js';
 import { enviarBoasVindas, resumoEmail } from './email.js';
 import { consultarAssinatura } from './mercadopago.js';
+import { processarUpdateTelegram } from '../canal/webhook.js';
+import { telegramConfigurado } from '../canal/telegram.js';
+import {
+  contarMensagens,
+  contarPendentes,
+  pendentes,
+  alertasMetadeSla,
+  relatorioMensal,
+} from '../canal/conversas.js';
 
 function lerCorpo(req) {
   return new Promise((resolve, reject) => {
@@ -81,6 +90,15 @@ export function criarServidor() {
             resumo: resumoCheckout(),
           },
           email: resumoEmail(),
+          canal: {
+            // Falha visível (ACE-14/ACE-4): configurado=false aqui é o sinal
+            // de que o canal ainda não tem token real — a Bia não recebe nada.
+            configurado: telegramConfigurado(),
+            staffConfigurado: Boolean(config.canal.staffChatId),
+            mensagens: contarMensagens(),
+            pendentes: contarPendentes(),
+            alertasMetadeSla: alertasMetadeSla().length,
+          },
         });
       }
 
@@ -186,6 +204,43 @@ export function criarServidor() {
         } catch (e) {
           return enviarJson(res, 400, { ok: false, erro: e.message });
         }
+      }
+
+      if (req.method === 'POST' && url.pathname === '/canal/telegram/webhook') {
+        const body = await lerCorpo(req);
+        const update = JSON.parse(body || '{}');
+        try {
+          const resultado = await processarUpdateTelegram(update);
+          return enviarJson(res, 200, resultado);
+        } catch (e) {
+          // 200 mesmo em erro de processamento: um 4xx/5xx faz o Telegram
+          // reenviar o update em loop. O erro fica visível no log do serviço.
+          // eslint-disable-next-line no-console
+          console.error(`[canal] falha ao processar update do Telegram: ${e.message}`);
+          return enviarJson(res, 200, { ok: false, erro: e.message });
+        }
+      }
+
+      if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/canal/painel') {
+        // Painel da Bia: o que está pendente e o que já passou da metade do
+        // prazo útil (ACE-14 item 4) — é o que evita o estouro antes de virar
+        // devolução.
+        return enviarJson(res, 200, {
+          ok: true,
+          configurado: telegramConfigurado(),
+          staffConfigurado: Boolean(config.canal.staffChatId),
+          totalMensagens: contarMensagens(),
+          pendentes: pendentes(),
+          alertasMetadeSla: alertasMetadeSla(),
+        });
+      }
+
+      if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/canal/relatorio') {
+        const mes = url.searchParams.get('mes');
+        if (!mes || !/^\d{4}-\d{2}$/.test(mes)) {
+          return enviarJson(res, 400, { ok: false, erro: 'parâmetro "mes" obrigatório no formato AAAA-MM' });
+        }
+        return enviarJson(res, 200, { ok: true, mes, clientes: relatorioMensal(mes) });
       }
 
       enviarHtml(res, 404, '<h1>404</h1>');
