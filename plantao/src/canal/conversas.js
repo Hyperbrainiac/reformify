@@ -8,7 +8,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { config } from '../config.js';
 import { oferta } from '../oferta.js';
-import { horasUteisEntre, somarHorasUteis, estourou } from './sla.js';
+import { horasUteisEntre, somarHorasUteis, estourou, prazoTextoParaHorasUteis } from './sla.js';
 
 mkdirSync(config.dadosDir, { recursive: true });
 const db = new DatabaseSync(path.join(config.dadosDir, 'canal.db'));
@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS mensagens (
   aceite_em TEXT,
   resposta_fonte_texto TEXT,
   resposta_fonte_em TEXT,
-  escalou_marina INTEGER NOT NULL DEFAULT 0
+  escalou_marina INTEGER NOT NULL DEFAULT 0,
+  alertado_em TEXT
 );
 CREATE TABLE IF NOT EXISTS updates_processados (
   update_id INTEGER PRIMARY KEY,
@@ -64,12 +65,15 @@ export function marcarOnboarding(chatId) {
   );
 }
 
-export function registrarPergunta({ chatId, clienteNome, pergunta, plano = null }) {
+// entradaEm tem default de produção (agora) e é parâmetro só para o teste
+// conseguir simular "pergunta entrou X horas úteis atrás" de forma
+// determinística, sem precisar esperar relógio de verdade.
+export function registrarPergunta({ chatId, clienteNome, pergunta, plano = null, entradaEm = new Date().toISOString() }) {
   const info = db
     .prepare(
       'INSERT INTO mensagens (chat_id, cliente_nome, plano, pergunta, entrada_em) VALUES (?, ?, ?, ?, ?)'
     )
-    .run(chatId, clienteNome, plano, pergunta, new Date().toISOString());
+    .run(chatId, clienteNome, plano, pergunta, entradaEm);
   return Number(info.lastInsertRowid);
 }
 
@@ -108,7 +112,7 @@ export function marcarRespostaFonte(mensagemId, texto, { escalouMarina = false }
 
 function prazoRespostaHoras(planoId) {
   const plano = oferta.planos[planoId] || oferta.planos.escritorio;
-  return parseFloat(plano.prazoResposta);
+  return prazoTextoParaHorasUteis(plano.prazoResposta);
 }
 
 export function pendentes() {
@@ -127,6 +131,17 @@ export function alertasMetadeSla(agoraIso = new Date().toISOString()) {
       return { ...m, prazoHoras: prazo, metadeEm: metadeIso, horasUteisDecorridas: horasDecorridas };
     })
     .filter((m) => m.horasUteisDecorridas >= m.prazoHoras / 2);
+}
+
+export function marcarAlertado(mensagemId) {
+  db.prepare('UPDATE mensagens SET alertado_em = ? WHERE id = ?').run(new Date().toISOString(), mensagemId);
+}
+
+// Mesma lista de alertasMetadeSla, mas só quem ainda não foi empurrado pro
+// chat de staff — é o que o job de push (canal/alertas.js) consome, para
+// avisar a Bia uma vez por pergunta em vez de repetir a cada verificação.
+export function alertasParaNotificar(agoraIso = new Date().toISOString()) {
+  return alertasMetadeSla(agoraIso).filter((m) => !m.alertado_em);
 }
 
 export function contarMensagens() {

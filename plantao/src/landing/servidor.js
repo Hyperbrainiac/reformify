@@ -22,6 +22,7 @@ import {
   alertasMetadeSla,
   relatorioMensal,
 } from '../canal/conversas.js';
+import { verificarEEnviarAlertasSla } from '../canal/alertas.js';
 
 function lerCorpo(req) {
   return new Promise((resolve, reject) => {
@@ -233,6 +234,14 @@ export function criarServidor() {
           pendentes: pendentes(),
           alertasMetadeSla: alertasMetadeSla(),
         });
+      }
+
+      if (req.method === 'POST' && url.pathname === '/canal/verificar-alertas') {
+        // Dispara na mão a mesma checagem que o job periódico roda sozinho
+        // (ver index.js) — útil pra testar e pra Bia forçar uma checagem fora
+        // do ciclo normal sem esperar o intervalo.
+        const resultado = await verificarEEnviarAlertasSla();
+        return enviarJson(res, 200, { ok: true, ...resultado });
       }
 
       if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/canal/relatorio') {

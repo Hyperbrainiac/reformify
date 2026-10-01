@@ -44,7 +44,14 @@ instalarMockTelegram();
 async function main() {
   // --- Relógio de horário comercial (ACE-14 item 3) — o caso do próprio pedido:
   // pergunta às 17h de sexta, resposta às 10h de segunda = 2 horas úteis, não 65 corridas.
-  const { horasUteisEntre, somarHorasUteis } = await import('../src/canal/sla.js');
+  const { horasUteisEntre, somarHorasUteis, prazoTextoParaHorasUteis } = await import('../src/canal/sla.js');
+
+  // Regressão: parseFloat('1 dia útil') == 1 tratava o prazo do Plantão
+  // Reforma como 1 HORA em vez de 9 horas úteis (janela 9h-18h) — subestimava
+  // o prazo em 9x e teria disparado devolução automática indevida.
+  checar('"1 dia útil" (Plantão Reforma) = 9 horas úteis, não 1', prazoTextoParaHorasUteis('1 dia útil') === 9);
+  checar('"4 horas úteis" (Escritório) = 4 horas úteis', prazoTextoParaHorasUteis('4 horas úteis') === 4);
+  checar('"2 dias úteis" = 18 horas úteis', prazoTextoParaHorasUteis('2 dias úteis') === 18);
   const sexta17h = '2026-10-02T20:00:00.000Z'; // sexta 17h BRT = 20h UTC
   const segunda10h = '2026-10-05T13:00:00.000Z'; // segunda 10h BRT = 13h UTC
   const horas = horasUteisEntre(sexta17h, segunda10h);
@@ -148,6 +155,32 @@ async function main() {
   const saude = await fetch(`${base}/saude`).then((r) => r.json());
   checar('/saude reporta canal configurado=true com o token de teste', saude.canal.configurado === true);
   checar('/saude reporta 1 pendente', saude.canal.pendentes === 1);
+
+  // 8) Alerta de SLA na metade do prazo (ACE-14 item 4) — push automático pro
+  // chat de staff, não só um painel que a Bia precisa abrir pra conferir.
+  const { registrarPergunta } = await import('../src/canal/conversas.js');
+  const { verificarEEnviarAlertasSla } = await import('../src/canal/alertas.js');
+  const entradaQuarta10h = '2026-09-30T13:00:00.000Z'; // quarta 10h BRT
+  const agoraQuarta13h = '2026-09-30T16:00:00.000Z'; // quarta 13h BRT — 3h úteis depois
+  const idPendenteEscritorio = registrarPergunta({
+    chatId: '777',
+    clienteNome: 'Carlos Escritório',
+    pergunta: 'Dúvida pendente há 3h úteis',
+    plano: 'escritorio', // prazo 4h úteis -> metade = 2h; 3h já passou da metade
+    entradaEm: entradaQuarta10h,
+  });
+
+  const chamadasAntesDoAlerta = chamadasTelegram.length;
+  const resultadoAlerta1 = await verificarEEnviarAlertasSla(agoraQuarta13h);
+  checar('1 alerta de metade de SLA enviado', resultadoAlerta1.enviados === 1);
+  checar('alerta foi de fato empurrado ao chat de staff (push, não só painel)', chamadasTelegram.length === chamadasAntesDoAlerta + 1);
+  const chamadaAlerta = chamadasTelegram.at(-1);
+  checar('alerta vai para o staffChatId', chamadaAlerta.corpo.chat_id === '-100999');
+  checar('alerta identifica a pergunta e o cliente', chamadaAlerta.corpo.text.includes(`#${idPendenteEscritorio}`) && chamadaAlerta.corpo.text.includes('Carlos Escritório'));
+
+  // Rodar de novo no mesmo instante não deve reenviar (idempotência do push).
+  const resultadoAlerta2 = await verificarEEnviarAlertasSla(agoraQuarta13h);
+  checar('alerta não repete pela mesma pergunta já notificada', resultadoAlerta2.enviados === 0 && chamadasTelegram.length === chamadasAntesDoAlerta + 1);
 
   servidor.close();
   rmSync(dir, { recursive: true, force: true });

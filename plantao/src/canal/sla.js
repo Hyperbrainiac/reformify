@@ -104,3 +104,20 @@ export function somarHorasUteis(inicioIso, horasUteis) {
 export function estourou(entradaIso, respostaIso, prazoHorasUteis) {
   return horasUteisEntre(entradaIso, respostaIso) > prazoHorasUteis;
 }
+
+// Tamanho do "dia útil" para converter prazos como "1 dia útil" (oferta.js)
+// em horas úteis — um dia útil não é 24h, é só a janela de expediente.
+const HORAS_UTEIS_POR_DIA = JANELA_FIM_H - JANELA_INICIO_H;
+
+// Converte o texto de prazo da oferta ("4 horas úteis", "1 dia útil", "2 dias
+// úteis") para horas úteis. Existe porque `parseFloat(plano.prazoResposta)`
+// lia só o dígito e tratava "1 dia útil" como 1 HORA em vez de 9 horas úteis
+// (janela 9h-18h) — subestimava o prazo do Plantão Reforma em 9x e disparava
+// estouro/devolução automática que a empresa não devia (exatamente o risco
+// que a ACE-14 aponta).
+export function prazoTextoParaHorasUteis(texto) {
+  const m = /^(\d+(?:[.,]\d+)?)\s*(hora|dia)/i.exec(String(texto).trim());
+  if (!m) throw new Error(`prazo em formato desconhecido: "${texto}"`);
+  const valor = parseFloat(m[1].replace(',', '.'));
+  return m[2].toLowerCase() === 'dia' ? valor * HORAS_UTEIS_POR_DIA : valor;
+}
