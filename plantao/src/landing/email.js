@@ -52,7 +52,7 @@ async function despacharEmail({ destinatario, assunto, corpo }) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: process.env.RESEND_FROM || 'ACE AI <plantao@ace.ai>',
+      from: process.env.RESEND_FROM || 'Reformify <plantao@ace.ai>',
       to: [destinatario],
       subject: assunto,
       text: corpo,

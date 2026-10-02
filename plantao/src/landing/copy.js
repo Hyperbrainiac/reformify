@@ -50,7 +50,7 @@ export const copy = {
   prova: {
     titulo: 'A gente não tem 200 depoimentos. Tem isto aqui.',
     intro:
-      'A ACE é nova e não vai fingir o contrário. O que a gente pode mostrar antes de você pagar qualquer coisa é o produto funcionando:',
+      'A Reformify é nova e não vai fingir o contrário. O que a gente pode mostrar antes de você pagar qualquer coisa é o produto funcionando:',
     pergunta:
       'Meu cliente é do Simples Nacional e me perguntou se ele vai precisar destacar IBS e CBS na nota. O que eu respondo pra ele?',
     resposta: [

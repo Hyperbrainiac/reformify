@@ -15,39 +15,49 @@ function esc(s) {
 }
 
 const CSS = `
-:root{--bg:#0b0f14;--fg:#e9edf1;--muted:#9aa7b2;--accent:#2fd06a;--accent-fg:#06210f;--card:#131a22;--border:#22303b;font-size:16px}
+:root{--bg:#0b0f14;--bg-soft:#0f1520;--fg:#e9edf1;--muted:#9aa7b2;--accent:#2fd06a;--accent-2:#22b8d8;--accent-fg:#06210f;--card:#131a22;--border:#22303b;font-size:16px}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,system-ui,Segoe UI,Roboto,Arial,sans-serif;line-height:1.5}
 .wrap{max-width:720px;margin:0 auto;padding:0 20px}
-header.hero{padding:48px 0 32px;text-align:left}
-h1{font-size:1.9rem;line-height:1.25;margin:0 0 16px}
+.topo{padding:20px 0;display:flex;align-items:center;gap:10px}
+.marca{display:flex;align-items:center;gap:8px;font-weight:800;font-size:1.15rem;letter-spacing:-.02em;color:var(--fg);text-decoration:none}
+.marca .ponto{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));flex:none}
+header.hero{position:relative;padding:28px 0 36px;text-align:left;border-radius:16px;overflow:hidden}
+header.hero::before{content:"";position:absolute;inset:-40% -10% auto -10%;height:260px;background:radial-gradient(60% 100% at 30% 0%,rgba(47,208,106,.22),transparent 70%),radial-gradient(50% 100% at 90% 10%,rgba(34,184,216,.16),transparent 70%);pointer-events:none;z-index:0}
+header.hero>*{position:relative;z-index:1}
+.selo{display:inline-block;background:var(--card);border:1px solid var(--border);color:var(--accent);font-size:.78rem;font-weight:700;letter-spacing:.02em;padding:5px 12px;border-radius:999px;margin-bottom:14px}
+h1{font-size:1.9rem;line-height:1.25;margin:0 0 16px;letter-spacing:-.01em}
 .subhead{color:var(--muted);font-size:1.05rem;margin:0 0 24px}
 section{padding:32px 0;border-top:1px solid var(--border)}
-section h2{font-size:1.4rem;margin:0 0 16px}
-.btn{display:inline-block;width:100%;text-align:center;background:var(--accent);color:var(--accent-fg);font-weight:700;padding:16px 20px;border-radius:10px;text-decoration:none;font-size:1.05rem;min-height:44px}
-.btn.secundario{background:transparent;color:var(--fg);border:1px solid var(--border)}
+section h2{font-size:1.4rem;margin:0 0 16px;letter-spacing:-.01em}
+.btn{display:inline-block;width:100%;text-align:center;background:var(--accent);color:var(--accent-fg);font-weight:700;padding:16px 20px;border-radius:10px;text-decoration:none;font-size:1.05rem;min-height:44px;border:none;cursor:pointer;box-shadow:0 8px 20px -10px rgba(47,208,106,.55);transition:transform .15s ease,box-shadow .15s ease}
+.btn:hover{transform:translateY(-1px);box-shadow:0 10px 24px -8px rgba(47,208,106,.6)}
+.btn.secundario{background:transparent;color:var(--fg);border:1px solid var(--border);box-shadow:none}
 .btn-apoio{color:var(--muted);font-size:.9rem;margin-top:10px;text-align:center}
-.passo{margin-bottom:20px}
-.passo b{display:block;margin-bottom:4px}
+.passo{margin-bottom:20px;padding:14px 16px;background:var(--card);border:1px solid var(--border);border-radius:10px}
+.passo b{display:block;margin-bottom:4px;color:var(--accent)}
 blockquote{border-left:3px solid var(--accent);margin:16px 0;padding:4px 0 4px 16px;color:var(--fg)}
 blockquote p{margin:0 0 12px}
 .pergunta-real{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;font-style:italic}
 .fonte-verificacao{color:var(--muted);font-size:.85rem;margin-top:12px}
 .rodape-disclaimer{color:var(--muted);font-size:.8rem;border-top:1px dashed var(--border);margin-top:16px;padding-top:12px}
-table.planos{width:100%;border-collapse:collapse;margin:16px 0;font-size:.92rem}
+table.planos{width:100%;border-collapse:collapse;margin:16px 0;font-size:.92rem;border-radius:10px;overflow:hidden}
 table.planos th,table.planos td{border:1px solid var(--border);padding:10px 8px;text-align:left;vertical-align:top}
 table.planos th{background:var(--card)}
+table.planos th:nth-child(3){background:linear-gradient(180deg,rgba(47,208,106,.18),var(--card));color:var(--fg)}
+table.planos td:nth-child(3){background:rgba(47,208,106,.05)}
 .preco{font-size:1.3rem;font-weight:700;color:var(--accent)}
 .cta-grupo{display:flex;flex-direction:column;gap:10px;margin-top:20px}
 ul.check{list-style:none;padding:0;margin:0}
 ul.check li{padding:8px 0 8px 28px;position:relative}
 ul.check li::before{content:"—";position:absolute;left:0;color:var(--accent)}
-details{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;padding:4px 12px}
+details{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;padding:4px 12px;background:var(--bg-soft)}
 details summary{padding:12px 0;font-weight:600;cursor:pointer;min-height:44px;display:flex;align-items:center}
 details p{color:var(--muted);margin:0 0 12px}
 form.lead{display:flex;flex-direction:column;gap:14px}
 form.lead label{font-weight:600;font-size:.95rem}
 form.lead input,form.lead select,form.lead textarea{width:100%;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--fg);font-size:1rem;min-height:44px}
+form.lead input:focus,form.lead select:focus,form.lead textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
 form.lead textarea{min-height:88px}
 .checkbox-linha{display:flex;align-items:flex-start;gap:10px;font-weight:400;font-size:.9rem;color:var(--muted)}
 .checkbox-linha input{width:auto;min-height:auto;margin-top:3px}
@@ -228,12 +238,16 @@ export function paginaLandingHtml({ preview, mensagem } = {}) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 ${robotsMeta}
-<title>Plantão Reforma Tributária — ACE AI</title>
+<title>Reformify — Plantão Reforma Tributária</title>
 <style>${CSS}</style>
 </head>
 <body>
 <div class="wrap">
+  <div class="topo">
+    <span class="marca"><span class="ponto"></span>Reformify</span>
+  </div>
   <header class="hero">
+    <span class="selo">Plantão Reforma Tributária</span>
     <h1>${esc(copy.h1)}</h1>
     <p class="subhead">${esc(copy.subhead)}</p>
     <a class="btn" href="#amostra-gratis">${esc(copy.ctaPrimario.texto)}</a>
